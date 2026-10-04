@@ -1,0 +1,65 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kmg-staging
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: kmg-staging
+      environment: staging
+    includeSelectors: false
+
+# Smaller footprint than production.
+replicas:
+  - name: api
+    count: 2
+  - name: web
+    count: 2
+
+# Merged on top of base/config.env.
+configMapGenerator:
+  - name: kmg-config
+    behavior: merge
+    envs:
+      - config.env
+
+images:
+  - name: ghcr.io/kmg-technologies/kmg-api
+    newTag: staging
+  - name: ghcr.io/kmg-technologies/kmg-web
+    newTag: staging
+
+patches:
+  # Hostnames
+  - target:
+      kind: Ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.kmgtek.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: staging.kmgtek.com
+      - op: replace
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-staging
+  # A 2-replica deployment cannot honour minAvailable: 2 during node drains.
+  - target:
+      kind: PodDisruptionBudget
+    patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 1
+  - target:
+      kind: HorizontalPodAutoscaler
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4

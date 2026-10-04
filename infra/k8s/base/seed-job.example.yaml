@@ -1,0 +1,46 @@
+# One-off seeding of a FRESH database (roles, permissions, email templates and the
+# initial super admin). Not part of the kustomization — run it deliberately:
+#   kubectl apply -f infra/k8s/base/seed-job.example.yaml -n kmg-staging
+#   kubectl -n kmg-staging wait --for=condition=complete job/api-seed --timeout=10m
+# Change SEED_ADMIN_PASSWORD immediately after the first login.
+# NOTE: kustomize appends a content hash to the generated ConfigMap name. Look the
+# real name up first: kubectl -n <ns> get cm -o name | grep kmg-config
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: api-seed
+  labels:
+    app.kubernetes.io/name: api-seed
+    app.kubernetes.io/component: migration
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api-migrate # reuses the migration NetworkPolicy
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: seed
+          # the `tools` image target: devDependencies + tsx + prisma/seed.ts
+          image: ghcr.io/kmg-technologies/kmg-api-tools:latest
+          command: ['pnpm', 'prisma:seed']
+          env:
+            - { name: HOME, value: /tmp }
+          envFrom:
+            - configMapRef: { name: kmg-config }
+            - secretRef: { name: kmg-secrets }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: '1', memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ['ALL'] }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]

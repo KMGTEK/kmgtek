@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base is never applied directly — use overlays/staging or overlays/production.
+resources:
+  - serviceaccount.yaml
+  - api.yaml
+  - web.yaml
+  - migrate-job.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+# Not included on purpose:
+#   secret.example.yaml         -> provided by External Secrets / Sealed Secrets
+#   servicemonitor.example.yaml -> needs the Prometheus Operator CRDs
+#   seed-job.example.yaml       -> one-off, run manually on a fresh database
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: kmg
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
+
+configMapGenerator:
+  - name: kmg-config
+    envs:
+      - config.env
+    options:
+      labels:
+        kmg.io/deploy-phase: pre
+
+# The content hash in the generated ConfigMap name rolls the pods automatically
+# whenever configuration changes.
+generatorOptions:
+  disableNameSuffixHash: false
+
+images:
+  - name: ghcr.io/kmg-technologies/kmg-api
+    newTag: latest
+  - name: ghcr.io/kmg-technologies/kmg-web
+    newTag: latest

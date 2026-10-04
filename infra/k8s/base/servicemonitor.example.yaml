@@ -1,0 +1,20 @@
+# OPTIONAL — requires the Prometheus Operator CRDs, therefore not in kustomization.yaml.
+# Expose a Prometheus endpoint in the API first (e.g. @willsoto/nestjs-prometheus at
+# GET /metrics, excluded from the /api/v1 prefix and blocked at the ingress), then:
+#   kubectl apply -f infra/k8s/base/servicemonitor.example.yaml -n kmg-production
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kmg-api
+  labels:
+    app.kubernetes.io/name: api
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

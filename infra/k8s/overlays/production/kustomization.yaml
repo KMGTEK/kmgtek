@@ -1,0 +1,59 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kmg-production
+
+resources:
+  - namespace.yaml
+  - ../../base
+# PostgreSQL / Redis / object storage are MANAGED services in production
+# (RDS or Aurora, ElastiCache, S3 + CloudFront). The in-cluster StatefulSets under
+# infra/k8s/addons are for throwaway environments only and are never referenced here.
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: kmg-production
+      environment: production
+    includeSelectors: false
+
+replicas:
+  - name: api
+    count: 3
+  - name: web
+    count: 3
+
+configMapGenerator:
+  - name: kmg-config
+    behavior: merge
+    envs:
+      - config.env
+
+images:
+  - name: ghcr.io/kmg-technologies/kmg-api
+    newTag: latest # CI replaces this with the released tag (kustomize edit set image)
+  - name: ghcr.io/kmg-technologies/kmg-web
+    newTag: latest
+
+patches:
+  - target:
+      kind: Ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: kmgtek.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: kmgtek.com
+  # Production capacity: bigger requests, wider autoscaling range.
+  - path: patch-api-resources.yaml
+  - path: patch-web-resources.yaml
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: api
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 20

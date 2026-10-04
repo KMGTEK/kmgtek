@@ -1,0 +1,28 @@
+{
+  "name": "kmg-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KmgTechnologies — corporate website, lead generation and recruitment platform",
+  "packageManager": "pnpm@11.15.1",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @kmg/shared build && pnpm --parallel --filter @kmg/api --filter @kmg/web --filter @kmg/shared dev",
+    "dev:api": "pnpm --filter @kmg/api dev",
+    "dev:web": "pnpm --filter @kmg/web dev",
+    "build": "pnpm --filter @kmg/shared build && pnpm --filter @kmg/api build && pnpm --filter @kmg/web build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @kmg/api prisma:generate",
+    "db:migrate": "pnpm --filter @kmg/api prisma:migrate",
+    "db:seed": "pnpm --filter @kmg/api prisma:seed",
+    "db:studio": "pnpm --filter @kmg/api prisma:studio",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,css,yml,yaml}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  }
+}

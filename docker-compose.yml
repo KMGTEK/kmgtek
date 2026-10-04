@@ -1,0 +1,284 @@
+# KmgTechnologies — production-like full stack (single host).
+#
+#   cp .env.example .env      # then edit secrets/hostnames
+#   docker compose build
+#   docker compose up -d      # api applies migrations on start (RUN_MIGRATIONS=true)
+#   docker compose --profile seed run --rm seed
+#
+# Everything is served through nginx on :80 (and :443 once certs are mounted).
+# For local development of the apps themselves use docker-compose.dev.yml + `pnpm dev`.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+x-restart: &default-restart
+  restart: unless-stopped
+
+services:
+  # ────────────────────────────── data stores ──────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    <<: *default-restart
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kmg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kmg_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-kmg}
+      # deterministic collation for reproducible ordering
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=256MB
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-kmg} -d ${POSTGRES_DB:-kmg}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [backend]
+    deploy:
+      resources:
+        limits: { cpus: '2.0', memory: 2g }
+        reservations: { cpus: '0.25', memory: 512m }
+
+  redis:
+    image: redis:7.4-alpine
+    <<: *default-restart
+    logging: *default-logging
+    command:
+      [
+        'redis-server',
+        '--requirepass',
+        '${REDIS_PASSWORD:-kmg_dev_password}',
+        '--appendonly',
+        'yes',
+        '--maxmemory',
+        '256mb',
+        '--maxmemory-policy',
+        'allkeys-lru',
+      ]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-kmg_dev_password}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli --no-auth-warning -a "$$REDIS_PASSWORD" ping | grep -q PONG']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks: [backend]
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 384m }
+
+  minio:
+    # Pin to a digest in production. MinIO community images are no longer
+    # published on a regular cadence — for real deployments prefer AWS S3.
+    image: minio/minio:latest
+    <<: *default-restart
+    logging: *default-logging
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_CONSOLE_URL:-http://localhost:9001}
+    ports:
+      # Published so pre-signed URLs handed to the browser resolve to the same
+      # host:port the API signed them for. See docs/DEPLOYMENT.md § object storage.
+      - '${MINIO_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [backend]
+    deploy:
+      resources:
+        limits: { cpus: '1.0', memory: 1g }
+
+  # One-shot: create buckets + make the public bucket anonymously readable.
+  minio-init:
+    image: minio/mc:latest
+    restart: 'no'
+    logging: *default-logging
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-kmg-public}
+      S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-kmg-private}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        set -e
+        mc alias set kmg http://minio:9000 "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY"
+        mc mb --ignore-existing "kmg/$$S3_BUCKET_PUBLIC"
+        mc mb --ignore-existing "kmg/$$S3_BUCKET_PRIVATE"
+        # public bucket: anonymous read-only (logos, blog images, avatars)
+        mc anonymous set download "kmg/$$S3_BUCKET_PUBLIC"
+        # private bucket: no anonymous access — resumes are served via signed URLs
+        mc anonymous set none "kmg/$$S3_BUCKET_PRIVATE"
+        echo "minio-init: buckets ready"
+    networks: [backend]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    <<: *default-restart
+    logging: *default-logging
+    environment:
+      MP_MAX_MESSAGES: '5000'
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+    ports:
+      - '${MAILPIT_UI_PORT:-8025}:8025' # web UI — remove when a real SMTP relay is used
+    networks: [backend]
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 256m }
+
+  # ─────────────────────────────── application ──────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+      target: runtime
+      args:
+        VERSION: ${KMG_VERSION:-1.0.0}
+        REVISION: ${KMG_REVISION:-local}
+    image: ${IMAGE_REGISTRY:-ghcr.io/kmg-technologies}/kmg-api:${KMG_VERSION:-local}
+    <<: *default-restart
+    logging: *default-logging
+    env_file: [.env]
+    environment:
+      NODE_ENV: production
+      API_PORT: '4000'
+      RUN_MIGRATIONS: 'true'
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kmg}:${POSTGRES_PASSWORD:-kmg_dev_password}@postgres:5432/${POSTGRES_DB:-kmg}?schema=public&connection_limit=10&pool_timeout=20
+      REDIS_URL: redis://:${REDIS_PASSWORD:-kmg_dev_password}@redis:6379/0
+      STORAGE_DRIVER: s3
+      S3_ENDPOINT: ${S3_ENDPOINT_INTERNAL:-http://minio:9000}
+      S3_FORCE_PATH_STYLE: 'true'
+      MAIL_DRIVER: ${MAIL_DRIVER:-smtp}
+      SMTP_HOST: ${SMTP_HOST_INTERNAL:-mailpit}
+      SMTP_PORT: '1025'
+      SMTP_SECURE: 'false'
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+    volumes:
+      - api-uploads:/app/uploads # only used when STORAGE_DRIVER=local
+    # healthcheck (GET /health/ready) is baked into the image
+    networks: [backend, frontend]
+    deploy:
+      resources:
+        limits: { cpus: '2.0', memory: 1g }
+        reservations: { cpus: '0.25', memory: 256m }
+
+  # One-shot seeding: `docker compose --profile seed run --rm seed`
+  seed:
+    profiles: ['seed']
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+      target: tools
+    image: ${IMAGE_REGISTRY:-ghcr.io/kmg-technologies}/kmg-api-tools:${KMG_VERSION:-local}
+    restart: 'no'
+    logging: *default-logging
+    env_file: [.env]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kmg}:${POSTGRES_PASSWORD:-kmg_dev_password}@postgres:5432/${POSTGRES_DB:-kmg}?schema=public
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@kmgtek.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-ChangeMe123!}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+    command: ['pnpm', 'prisma:seed']
+    depends_on:
+      api: { condition: service_healthy } # API applies the migrations first
+    networks: [backend]
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      target: runtime
+      args:
+        # inlined into the client bundle at build time — rebuild when they change
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost}
+        NEXT_PUBLIC_GA_ID: ${NEXT_PUBLIC_GA_ID:-}
+        API_INTERNAL_URL: http://api:4000
+        VERSION: ${KMG_VERSION:-1.0.0}
+        REVISION: ${KMG_REVISION:-local}
+    image: ${IMAGE_REGISTRY:-ghcr.io/kmg-technologies}/kmg-web:${KMG_VERSION:-local}
+    <<: *default-restart
+    logging: *default-logging
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      API_INTERNAL_URL: http://api:4000
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost}
+    depends_on:
+      api: { condition: service_healthy }
+    volumes:
+      - web-cache:/app/apps/web/.next/cache # ISR + image optimizer cache
+    networks: [backend, frontend]
+    deploy:
+      resources:
+        limits: { cpus: '2.0', memory: 1g }
+        reservations: { cpus: '0.25', memory: 256m }
+
+  nginx:
+    image: nginx:1.28-alpine
+    <<: *default-restart
+    logging: *default-logging
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/snippets:/etc/nginx/snippets:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1/nginx-health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks: [frontend]
+    deploy:
+      resources:
+        limits: { cpus: '1.0', memory: 256m }
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+
+volumes:
+  pg-data:
+  redis-data:
+  minio-data:
+  api-uploads:
+  web-cache:
+  nginx-cache:

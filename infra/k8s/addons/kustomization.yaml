@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Dev-only in-cluster datastores. Apply into a throwaway namespace:
+#   kubectl apply -k infra/k8s/addons -n kmg-staging
+# Production uses managed services — see datastores.yaml for the mapping.
+resources:
+  - datastores.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: kmg
+      kmg.io/addon: 'true'
+    includeSelectors: false

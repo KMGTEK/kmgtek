@@ -1,0 +1,121 @@
+# ingress-nginx + cert-manager. Hosts are patched per environment in the overlays.
+#
+# Three Ingress objects share one host on purpose: ingress-nginx applies rate-limit
+# annotations per Ingress, so the strict limits for auth and for public forms live
+# in their own objects. `use-regex` is enabled host-wide (documented ingress-nginx
+# behaviour), therefore every path below is written as an anchored regex.
+#
+# ingress-nginx is in maintenance/retirement; the same routing maps 1:1 onto the
+# Gateway API (HTTPRoute + RequestRateLimit filters) when the cluster moves over.
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kmg
+  labels:
+    app.kubernetes.io/name: kmg
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/use-regex: 'true'
+    nginx.ingress.kubernetes.io/proxy-body-size: 12m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '120'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '120'
+    nginx.ingress.kubernetes.io/limit-rps: '30'
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: '5'
+    nginx.ingress.kubernetes.io/limit-connections: '50'
+    nginx.ingress.kubernetes.io/enable-cors: 'false'
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [kmgtek.com]
+      secretName: kmg-tls
+  rules:
+    - host: kmgtek.com
+      http:
+        paths:
+          - path: ^/api
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 3000
+---
+# Authentication endpoints — brute-force guard (20 requests/minute/IP).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kmg-auth
+  labels:
+    app.kubernetes.io/name: kmg
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/use-regex: 'true'
+    nginx.ingress.kubernetes.io/limit-rpm: '20'
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: '2'
+    nginx.ingress.kubernetes.io/limit-connections: '20'
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [kmgtek.com]
+      secretName: kmg-tls
+  rules:
+    - host: kmgtek.com
+      http:
+        paths:
+          - path: ^/api/v1/auth
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000
+---
+# Public write endpoints (contact form, job applications) — spam guard + uploads.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kmg-forms
+  labels:
+    app.kubernetes.io/name: kmg
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/use-regex: 'true'
+    nginx.ingress.kubernetes.io/limit-rpm: '10'
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: '2'
+    nginx.ingress.kubernetes.io/proxy-body-size: 12m
+    nginx.ingress.kubernetes.io/proxy-request-buffering: 'on'
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [kmgtek.com]
+      secretName: kmg-tls
+  rules:
+    - host: kmgtek.com
+      http:
+        paths:
+          - path: ^/api/v1/contact$
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000
+          - path: ^/api/v1/jobs/[^/]+/apply$
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000

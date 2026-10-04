@@ -1,0 +1,894 @@
+// KmgTechnologies platform — PostgreSQL schema
+// Conventions: cuid ids, createdAt/updatedAt on mutable tables, soft-delete via deletedAt
+// where records have business/audit value. Table names are snake_case plural.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Enums ───────────────────────────────
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum AuthProvider {
+  GOOGLE
+  LINKEDIN
+}
+
+enum FileVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum UploadPurpose {
+  RESUME
+  COVER_LETTER
+  LOGO
+  TEAM_PHOTO
+  BLOG_IMAGE
+  CASE_STUDY_IMAGE
+  AVATAR
+  GENERAL
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  CONTRACT_TO_HIRE
+  INTERNSHIP
+}
+
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum SalaryPeriod {
+  YEAR
+  MONTH
+  HOUR
+}
+
+enum ApplicationStatus {
+  APPLIED
+  UNDER_REVIEW
+  TECHNICAL_ROUND
+  HR_ROUND
+  OFFER
+  JOINED
+  REJECTED
+  WITHDRAWN
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum InterviewRound {
+  SCREENING
+  TECHNICAL
+  MANAGERIAL
+  HR
+  CLIENT
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum InterviewDecision {
+  STRONG_HIRE
+  HIRE
+  ON_HOLD
+  NO_HIRE
+  STRONG_NO_HIRE
+}
+
+enum NotificationType {
+  APPLICATION_RECEIVED
+  APPLICATION_STATUS_UPDATED
+  INTERVIEW_SCHEDULED
+  OFFER_RELEASED
+  NEW_LEAD
+  LEAD_ASSIGNED
+  SYSTEM
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+// ──────────────────────── Identity & Access ────────────────────────
+
+model User {
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  passwordHash       String?
+  name               String
+  avatarUrl          String?
+  status             UserStatus @default(ACTIVE)
+  emailVerifiedAt    DateTime?
+  lastLoginAt        DateTime?
+  failedLoginCount   Int        @default(0)
+  lockedUntil        DateTime?
+  passwordChangedAt  DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  deletedAt          DateTime?
+
+  roles              UserRole[]
+  oauthAccounts      OAuthAccount[]
+  refreshTokens      RefreshToken[]
+  passwordResets     PasswordResetToken[]
+  candidate          Candidate?
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  uploadedFiles      FileObject[]           @relation("FileUploader")
+  managedJobs        Job[]                  @relation("JobHiringManager")
+  createdJobs        Job[]                  @relation("JobCreator")
+  assignedLeads      ContactLead[]          @relation("LeadAssignee")
+  leadNotes          LeadNote[]
+  applicationNotes   ApplicationNote[]
+  statusChanges      ApplicationStatusHistory[]
+  interviewsAssigned InterviewInterviewer[]
+  interviewFeedback  InterviewFeedback[]
+  interviewsCreated  Interview[]            @relation("InterviewCreator")
+
+  @@index([status])
+  @@map("users")
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique // SUPER_ADMIN, HR, RECRUITER, HIRING_MANAGER, CONTENT_EDITOR, SALES, CANDIDATE
+  description String?
+  isSystem    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique // e.g. "jobs:write"
+  description String?
+  createdAt   DateTime         @default(now())
+
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model OAuthAccount {
+  id                String       @id @default(cuid())
+  userId            String
+  provider          AuthProvider
+  providerAccountId String
+  createdAt         DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+/// Refresh tokens are stored hashed and rotated on every use. Reuse of a revoked token
+/// revokes the whole family (token theft detection).
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  familyId   String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ─────────────────────────────── Files ───────────────────────────────
+
+model FileObject {
+  id           String         @id @default(cuid())
+  key          String         @unique // object key in the bucket
+  bucket       String
+  originalName String
+  mimeType     String
+  size         Int
+  checksum     String?
+  purpose      UploadPurpose
+  visibility   FileVisibility @default(PUBLIC)
+  uploadedById String?
+  createdAt    DateTime       @default(now())
+  deletedAt    DateTime?
+
+  uploadedBy        User?            @relation("FileUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  resumes           Resume[]
+  applicationResume JobApplication[] @relation("ApplicationResume")
+  applicationCover  JobApplication[] @relation("ApplicationCoverLetter")
+
+  @@index([purpose])
+  @@index([uploadedById])
+  @@map("files")
+}
+
+// ──────────────────────────── Marketing CMS ────────────────────────────
+
+model Service {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  title            String
+  shortDescription String
+  overview         String
+  icon             String   @default("Cloud")
+  benefits         Json     @default("[]") // Benefit[]
+  process          Json     @default("[]") // ProcessStep[]
+  faqs             Json     @default("[]") // FAQ[]
+  order            Int      @default(0)
+  published        Boolean  @default(true)
+  seoTitle         String?
+  seoDescription   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  technologies ServiceTechnology[]
+  leads        ContactLead[]
+
+  @@index([published, order])
+  @@map("services")
+}
+
+model TechnologyCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  technologies Technology[]
+
+  @@map("technology_categories")
+}
+
+model Technology {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  logoUrl     String?
+  icon        String? // simple-icons slug
+  websiteUrl  String?
+  categoryId  String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category    TechnologyCategory     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  services    ServiceTechnology[]
+  caseStudies CaseStudyTechnology[]
+
+  @@index([categoryId, order])
+  @@map("technologies")
+}
+
+model ServiceTechnology {
+  serviceId    String
+  technologyId String
+
+  service    Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@id([serviceId, technologyId])
+  @@index([technologyId])
+  @@map("service_technologies")
+}
+
+model TeamMember {
+  id           String   @id @default(cuid())
+  name         String
+  title        String
+  bio          String?
+  photoUrl     String?
+  linkedinUrl  String?
+  twitterUrl   String?
+  isLeadership Boolean  @default(false)
+  published    Boolean  @default(true)
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([published, order])
+  @@map("team_members")
+}
+
+model Testimonial {
+  id          String   @id @default(cuid())
+  authorName  String
+  authorTitle String?
+  company     String?
+  avatarUrl   String?
+  quote       String
+  rating      Int      @default(5)
+  featured    Boolean  @default(false)
+  published   Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([published, featured])
+  @@map("testimonials")
+}
+
+model CaseStudy {
+  id             String    @id @default(cuid())
+  slug           String    @unique
+  title          String
+  clientName     String?
+  industry       String
+  summary        String
+  challenge      String
+  solution       String
+  architecture   String?
+  results        String
+  metrics        Json      @default("[]") // Metric[]
+  coverImageUrl  String?
+  featured       Boolean   @default(false)
+  published      Boolean   @default(true)
+  publishedAt    DateTime?
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  images       CaseStudyImage[]
+  technologies CaseStudyTechnology[]
+
+  @@index([published, featured])
+  @@index([industry])
+  @@map("case_studies")
+}
+
+model CaseStudyImage {
+  id          String   @id @default(cuid())
+  caseStudyId String
+  url         String
+  caption     String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  caseStudy CaseStudy @relation(fields: [caseStudyId], references: [id], onDelete: Cascade)
+
+  @@index([caseStudyId, order])
+  @@map("case_study_images")
+}
+
+model CaseStudyTechnology {
+  caseStudyId  String
+  technologyId String
+
+  caseStudy  CaseStudy  @relation(fields: [caseStudyId], references: [id], onDelete: Cascade)
+  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@id([caseStudyId, technologyId])
+  @@index([technologyId])
+  @@map("case_study_technologies")
+}
+
+// ─────────────────────────────── Leads ───────────────────────────────
+
+model ContactLead {
+  id              String     @id @default(cuid())
+  name            String
+  email           String
+  company         String?
+  phone           String?
+  country         String?
+  serviceId       String?
+  serviceInterest String?
+  message         String
+  status          LeadStatus @default(NEW)
+  source          String? // "contact-form", "service-page", utm_source...
+  ip              String?
+  userAgent       String?
+  assignedToId    String?
+  readAt          DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  service    Service?   @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  assignedTo User?      @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  notes      LeadNote[]
+
+  @@index([status, createdAt])
+  @@index([assignedToId])
+  @@index([email])
+  @@map("contact_leads")
+}
+
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  lead   ContactLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  author User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@map("lead_notes")
+}
+
+// ───────────────────────────── Recruitment ─────────────────────────────
+
+model JobCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique // Department
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobs Job[]
+
+  @@map("job_categories")
+}
+
+model Job {
+  id                 String         @id @default(cuid())
+  slug               String         @unique
+  title              String
+  summary            String
+  description        String // HTML
+  skills             String[]
+  responsibilities   String[]
+  requirements       String[]
+  preferredSkills    String[]
+  benefits           String[]
+  hiringProcess      Json           @default("[]") // ProcessStep[]
+  screeningQuestions Json           @default("[]") // ScreeningQuestion[]
+  experienceMin      Int            @default(0)
+  experienceMax      Int?
+  employmentType     EmploymentType
+  workMode           WorkMode
+  location           String
+  salaryMin          Int?
+  salaryMax          Int?
+  salaryCurrency     String?        @default("USD")
+  salaryPeriod       SalaryPeriod?  @default(YEAR)
+  showSalary         Boolean        @default(false)
+  openings           Int            @default(1)
+  status             JobStatus      @default(DRAFT)
+  publishedAt        DateTime?
+  closingDate        DateTime?
+  views              Int            @default(0)
+  seoTitle           String?
+  seoDescription     String?
+  departmentId       String?
+  hiringManagerId    String?
+  createdById        String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  deletedAt          DateTime?
+
+  department    JobCategory?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  hiringManager User?            @relation("JobHiringManager", fields: [hiringManagerId], references: [id], onDelete: SetNull)
+  createdBy     User?            @relation("JobCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  applications  JobApplication[]
+  savedBy       SavedJob[]
+
+  @@index([status, publishedAt])
+  @@index([departmentId])
+  @@index([workMode, employmentType])
+  @@index([location])
+  @@map("jobs")
+}
+
+model Candidate {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  phone           String?
+  location        String?
+  headline        String?
+  summary         String?
+  currentCompany  String?
+  experienceYears Float?
+  currentCtc      String?
+  expectedCtc     String?
+  noticePeriod    String?
+  linkedinUrl     String?
+  githubUrl       String?
+  portfolioUrl    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills       CandidateSkill[]
+  resumes      Resume[]
+  applications JobApplication[]
+  savedJobs    SavedJob[]
+
+  @@map("candidates")
+}
+
+model CandidateSkill {
+  id          String      @id @default(cuid())
+  candidateId String
+  name        String
+  level       SkillLevel?
+  years       Float?
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, name])
+  @@index([name])
+  @@map("candidate_skills")
+}
+
+model Resume {
+  id          String   @id @default(cuid())
+  candidateId String
+  fileId      String
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  candidate Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  file      FileObject @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+  @@map("resumes")
+}
+
+model SavedJob {
+  candidateId String
+  jobId       String
+  createdAt   DateTime @default(now())
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@id([candidateId, jobId])
+  @@index([jobId])
+  @@map("saved_jobs")
+}
+
+/// Professional fields are snapshotted at application time so later profile edits
+/// don't rewrite history.
+model JobApplication {
+  id              String            @id @default(cuid())
+  jobId           String
+  candidateId     String
+  status          ApplicationStatus @default(APPLIED)
+  rating          Int?
+  source          String?
+  fullName        String
+  email           String
+  phone           String
+  currentLocation String
+  currentCompany  String?
+  experienceYears Float
+  currentCtc      String?
+  expectedCtc     String?
+  noticePeriod    String?
+  linkedinUrl     String?
+  githubUrl       String?
+  portfolioUrl    String?
+  answers         Json              @default("[]") // { questionId, question, answer }[]
+  consentAt       DateTime
+  resumeFileId    String?
+  coverFileId     String?
+  ip              String?
+  hiredAt         DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  job        Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate  Candidate                  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  resume     FileObject?                @relation("ApplicationResume", fields: [resumeFileId], references: [id], onDelete: SetNull)
+  coverLetter FileObject?               @relation("ApplicationCoverLetter", fields: [coverFileId], references: [id], onDelete: SetNull)
+  history    ApplicationStatusHistory[]
+  notes      ApplicationNote[]
+  interviews Interview[]
+
+  @@unique([jobId, candidateId])
+  @@index([status, createdAt])
+  @@index([candidateId])
+  @@index([source])
+  @@map("job_applications")
+}
+
+model ApplicationStatusHistory {
+  id            String             @id @default(cuid())
+  applicationId String
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  note          String?
+  changedById   String?
+  createdAt     DateTime           @default(now())
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedBy   User?          @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, createdAt])
+  @@map("application_status_history")
+}
+
+model ApplicationNote {
+  id            String   @id @default(cuid())
+  applicationId String
+  authorId      String
+  content       String
+  createdAt     DateTime @default(now())
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  author      User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("application_notes")
+}
+
+model Interview {
+  id              String          @id @default(cuid())
+  applicationId   String
+  title           String
+  round           InterviewRound
+  status          InterviewStatus @default(SCHEDULED)
+  scheduledAt     DateTime
+  durationMinutes Int             @default(60)
+  timezone        String          @default("America/New_York")
+  meetingUrl      String?
+  location        String?
+  notes           String?
+  createdById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  application  JobApplication         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdBy    User?                  @relation("InterviewCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  interviewers InterviewInterviewer[]
+  feedback     InterviewFeedback[]
+
+  @@index([applicationId])
+  @@index([scheduledAt, status])
+  @@map("interviews")
+}
+
+model InterviewInterviewer {
+  interviewId String
+  userId      String
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([interviewId, userId])
+  @@index([userId])
+  @@map("interview_interviewers")
+}
+
+model InterviewFeedback {
+  id            String            @id @default(cuid())
+  interviewId   String
+  interviewerId String
+  rating        Int
+  decision      InterviewDecision
+  strengths     String?
+  weaknesses    String?
+  comments      String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  interviewer User      @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+
+  @@unique([interviewId, interviewerId])
+  @@map("interview_feedback")
+}
+
+// ─────────────────────────── Notifications ───────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique // see EMAIL_TEMPLATE_KEYS in @kmg/shared
+  name      String
+  subject   String // Handlebars
+  html      String // Handlebars
+  variables String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+model EmailLog {
+  id          String      @id @default(cuid())
+  templateKey String?
+  to          String
+  subject     String
+  status      EmailStatus @default(QUEUED)
+  error       String?
+  sentAt      DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([status, createdAt])
+  @@map("email_logs")
+}
+
+// ───────────────────────── Settings & Auditing ─────────────────────────
+
+/// One row per settings group (company, branding, social, seo, analytics, footer, legal, email).
+model WebsiteSetting {
+  id        String   @id @default(cuid())
+  group     String   @unique
+  value     Json
+  isPublic  Boolean  @default(true)
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("website_settings")
+}
+
+/// Editable marketing-copy sections ("content blocks") — hero headline, pillar lists,
+/// industries, about/careers/contact page copy, etc. `key` matches a `ContentBlockKey` from
+/// `@kmg/shared` (e.g. "home.hero"); `data` is validated against that key's zod schema on
+/// write. Lets a `content:write` admin edit every marketing-copy field with no code change.
+model ContentBlock {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  data      Json
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("content_blocks")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String // "<entity>.<verb>", e.g. "job.update"
+  entityType String
+  entityId   String?
+  changes    Json?
+  ip         String?
+  userAgent  String?
+  requestId  String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ────────────────────────────── Analytics ──────────────────────────────
+
+model PageView {
+  id          String   @id @default(cuid())
+  sessionId   String
+  path        String
+  title       String?
+  referrer    String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  device      String? // desktop | mobile | tablet | other
+  browser     String?
+  os          String?
+  country     String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path, createdAt])
+  @@index([sessionId])
+  @@map("page_views")
+}

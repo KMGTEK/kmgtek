@@ -1,0 +1,147 @@
+# Zero-trust networking for the KMG namespace.
+# Requires a CNI that enforces NetworkPolicy (Calico, Cilium, AWS VPC CNI with
+# policy enforcement, ...). Order matters only for readability — policies are additive.
+---
+# 1. Default deny: nothing in, nothing out, unless another policy allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# 2. DNS resolution for every pod (CoreDNS in kube-system).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# 3. Web: traffic from the ingress controller; may call the API and fetch remote
+#    images/fonts over HTTPS (next/image optimization, OG images).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - port: 4000
+          protocol: TCP
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.169.254/32 # block the cloud metadata endpoint
+      ports:
+        - port: 443
+          protocol: TCP
+---
+# 4. API: traffic from the ingress controller and from web pods.
+#    Egress to the database, cache, object storage, SMTP and OAuth providers.
+#    Managed services (RDS/ElastiCache/S3/SES) live outside the cluster, so the
+#    CIDRs are broad here — tighten them per environment in the overlays.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: web
+      ports:
+        - port: 4000
+          protocol: TCP
+    # Prometheus scraping (uncomment together with the ServiceMonitor):
+    # - from:
+    #     - namespaceSelector:
+    #         matchLabels:
+    #           kubernetes.io/metadata.name: monitoring
+    #       ports: [{ port: 4000, protocol: TCP }]
+  egress:
+    # PostgreSQL / Redis / MinIO — in-cluster (addons) or managed endpoints
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: datastore
+      ports:
+        - { port: 5432, protocol: TCP }
+        - { port: 6379, protocol: TCP }
+        - { port: 9000, protocol: TCP }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
+      ports:
+        - { port: 5432, protocol: TCP } # RDS
+        - { port: 6379, protocol: TCP } # ElastiCache
+        - { port: 443, protocol: TCP } # S3, Google/LinkedIn OAuth, SES API
+        - { port: 587, protocol: TCP } # SMTP submission
+        - { port: 465, protocol: TCP } # SMTPS
+---
+# 5. Migration Job: database only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-migrate
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api-migrate
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: datastore
+      ports:
+        - { port: 5432, protocol: TCP }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
+      ports:
+        - { port: 5432, protocol: TCP }
