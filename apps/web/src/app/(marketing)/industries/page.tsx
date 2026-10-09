@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import { PageHero } from '@/components/layout/page-hero';
 import { Section } from '@/components/layout/section';
 import { Stagger, StaggerItem } from '@/components/motion/stagger';
-import { ContactCta } from '@/components/marketing';
 import { DynamicIcon } from '@/components/shared/dynamic-icon';
 import { JsonLd } from '@/components/shared/json-ld';
 import { Card } from '@/components/ui/card';
@@ -50,8 +49,6 @@ export default async function IndustriesPage() {
           ))}
         </Stagger>
       </Section>
-
-      <ContactCta />
     </>
   );
 }

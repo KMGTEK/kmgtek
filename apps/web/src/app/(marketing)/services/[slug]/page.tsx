@@ -5,7 +5,6 @@ import { Section } from '@/components/layout/section';
 import { PageHero } from '@/components/layout/page-hero';
 import { Reveal } from '@/components/motion/reveal';
 import { Stagger, StaggerItem } from '@/components/motion/stagger';
-import { ContactCta } from '@/components/marketing';
 import { DynamicIcon } from '@/components/shared/dynamic-icon';
 import { JsonLd } from '@/components/shared/json-ld';
 import { TechLogo } from '@/components/shared/tech-logo';
@@ -156,11 +155,6 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
           </Accordion>
         </Section>
       ) : null}
-
-      <ContactCta
-        title={`Ready to talk ${service.title.toLowerCase()}?`}
-        description="Book a free consultation and we'll come back with a scoped, fixed-fee proposal."
-      />
     </>
   );
 }
