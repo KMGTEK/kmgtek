@@ -8,7 +8,6 @@ import { Section } from '@/components/layout/section';
 import { PageHero } from '@/components/layout/page-hero';
 import { Reveal } from '@/components/motion/reveal';
 import { Stagger, StaggerItem } from '@/components/motion/stagger';
-import { ContactCta } from '@/components/marketing';
 import { DynamicIcon } from '@/components/shared/dynamic-icon';
 import { EmptyState } from '@/components/shared/empty-state';
 import { JsonLd } from '@/components/shared/json-ld';
@@ -222,8 +221,6 @@ export default async function AboutPage() {
           ))}
         </ol>
       </Section>
-
-      <ContactCta />
     </>
   );
 }

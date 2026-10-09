@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import { PageHero } from '@/components/layout/page-hero';
 import { Section } from '@/components/layout/section';
 import { Stagger, StaggerItem } from '@/components/motion/stagger';
-import { ContactCta } from '@/components/marketing';
 import { JsonLd } from '@/components/shared/json-ld';
 import { TechLogo } from '@/components/shared/tech-logo';
 import { Card } from '@/components/ui/card';
@@ -72,8 +71,6 @@ export default async function TechnologiesPage() {
           ))}
         </div>
       </Section>
-
-      <ContactCta />
     </>
   );
 }
