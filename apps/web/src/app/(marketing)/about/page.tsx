@@ -34,9 +34,9 @@ function buildTimeline() {
   const milestones = [
     { year: founded, title: 'KMG Technologies founded', description: 'Started in Edison, New Jersey as a business analytics consultancy and technical talent practice.' },
     { year: Math.min(founded + 1, currentYear), title: 'Cloud & AI capabilities added', description: 'Expanded the analytics practice with cloud data platforms and applied AI to support it.' },
-    { year: Math.min(founded + Math.round(yearsActive * 0.4), currentYear), title: '50th enterprise engagement', description: 'Crossed 50 completed client engagements across banking, healthcare and manufacturing.' },
+    { year: Math.min(founded + Math.round(yearsActive * 0.4), currentYear), title: '25th enterprise engagement', description: 'Crossed 25 completed client engagements across banking, healthcare and manufacturing.' },
     { year: Math.min(founded + Math.round(yearsActive * 0.7), currentYear), title: 'Platform & DevOps practice', description: 'Built out platform engineering, DevOps and SRE capabilities alongside the analytics core.' },
-    { year: currentYear, title: 'Today', description: 'Serving clients nationwide with a senior, analytics-led delivery model.' },
+    { year: currentYear, title: 'Today', description: 'Serving clients across the United States with a senior, analytics-led delivery model.' },
   ];
   const deduped = milestones.filter((m, i, arr) => i === 0 || m.year > arr[i - 1].year);
   // Always keep the founding row and the "Today" row even if the middle ones collapsed.

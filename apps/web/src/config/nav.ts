@@ -61,7 +61,6 @@ export const marketingNav: MarketingNavEntry[] = [
   { title: 'Technologies', href: '/technologies' },
   { title: 'Careers', href: '/careers' },
   { title: 'About', href: '/about' },
-  { title: 'Contact', href: '/contact' },
 ];
 
 export const footerNav: NavGroup[] = [

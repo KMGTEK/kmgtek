@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRightIcon, ChevronRightIcon, MenuIcon, UserIcon } from 'lucide-react';
+import { ArrowRightIcon, ChevronRightIcon, LogOutIcon, MenuIcon, UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import * as React from 'react';
@@ -50,7 +50,7 @@ export function SiteHeader({ company, logoUrl }: SiteHeaderProps) {
   const pathname = usePathname() ?? '/';
   const [scrolled, setScrolled] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const { isAuthenticated, isStaff } = useAuth();
+  const { isAuthenticated, isStaff, logout } = useAuth();
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -166,12 +166,24 @@ export function SiteHeader({ company, logoUrl }: SiteHeaderProps) {
           </div>
           <ThemeToggle />
           {isAuthenticated ? (
-            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href={accountHref}>
-                <UserIcon className="size-4" />
-                {accountLabel}
-              </Link>
-            </Button>
+            <>
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <Link href={accountHref}>
+                  <UserIcon className="size-4" />
+                  {accountLabel}
+                </Link>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="hidden sm:inline-flex"
+                onClick={() => void logout({ redirectTo: '/' })}
+              >
+                <LogOutIcon className="size-4" />
+                Sign out
+              </Button>
+            </>
           ) : null}
           <Button asChild variant="gradient" size="sm" className="hidden md:inline-flex">
             <Link href={siteConfig.primaryCta.href}>{siteConfig.primaryCta.label}</Link>
@@ -247,9 +259,21 @@ export function SiteHeader({ company, logoUrl }: SiteHeaderProps) {
                       <Link href={siteConfig.primaryCta.href}>{siteConfig.primaryCta.label}</Link>
                     </Button>
                     {isAuthenticated ? (
-                      <Button asChild variant="outline" className="w-full" size="lg">
-                        <Link href={accountHref}>{accountLabel}</Link>
-                      </Button>
+                      <>
+                        <Button asChild variant="outline" className="w-full" size="lg">
+                          <Link href={accountHref}>{accountLabel}</Link>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="w-full"
+                          size="lg"
+                          onClick={() => void logout({ redirectTo: '/' })}
+                        >
+                          <LogOutIcon className="size-4" />
+                          Sign out
+                        </Button>
+                      </>
                     ) : null}
                   </div>
 
