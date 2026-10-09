@@ -80,7 +80,6 @@ const legalSchema = z.object({
   terms: z.string().max(200000).default(''),
 });
 const featuresSchema = z.object({
-  techMarquee: z.boolean(),
   companyIntro: z.boolean(),
   industries: z.boolean(),
   whyChooseUs: z.boolean(),
@@ -93,8 +92,7 @@ const featuresSchema = z.object({
 });
 
 const FEATURE_TOGGLES: { name: keyof z.infer<typeof featuresSchema>; label: string; description: string }[] = [
-  { name: 'techMarquee', label: 'Technologies marquee', description: 'The scrolling logo strip near the top of the homepage.' },
-  { name: 'companyIntro', label: 'Company introduction', description: 'The "who we are" section under the marquee.' },
+  { name: 'companyIntro', label: 'Company introduction', description: 'The "who we are" section under the hero.' },
   { name: 'industries', label: 'Industries we serve', description: 'The industries grid on the homepage.' },
   { name: 'whyChooseUs', label: 'Why choose us', description: 'The differentiators section on the homepage.' },
   { name: 'toolchain', label: 'Toolchain', description: 'The technologies-by-category preview on the homepage.' },

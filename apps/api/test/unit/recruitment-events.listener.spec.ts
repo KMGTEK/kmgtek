@@ -8,7 +8,7 @@ function buildListener(prismaOverrides: Record<string, unknown> = {}) {
   };
   const mail = { queueTemplate: jest.fn(), notifyAddresses: jest.fn().mockResolvedValue(['ops@kmgtek.com']) };
   const notifications = { create: jest.fn(), notifyRoles: jest.fn() };
-  const config = { webUrl: 'http://localhost:3000', mail: { fromAddress: 'recruiting@kmgtek.com' } };
+  const config = { webUrl: 'http://localhost:3000', mail: { fromAddress: 'contactus@kmgtek.com' } };
   const storage = { get: jest.fn().mockResolvedValue(Buffer.from('%PDF-fake')) };
 
   const listener = new RecruitmentEventsListener(

@@ -47,8 +47,8 @@ Source of truth: [`.env.example`](../.env.example). `R` = required in production
 | `SMTP_HOST` / `SMTP_PORT`                       |  ✓  | `localhost` / `1025`            | Relay host and port (587 STARTTLS, 465 implicit TLS)                                        |
 | `SMTP_SECURE`                                   |     | `false`                         | `true` only for port 465                                                                    |
 | `SMTP_USER` / `SMTP_PASS`                       | ✓²  | empty                           | Relay credentials (SES SMTP credentials, Postmark token, …)                                 |
-| `MAIL_FROM_NAME` / `MAIL_FROM_ADDRESS`          |  ✓  | KMG / recruiting@kmgtek.com     | Must be a verified sender                                                                   |
-| `MAIL_NOTIFY_ADDRESSES`                         |  ✓  | recruiting@kmgtek.com           | Staff inbox for new leads/applications (comma-separated)                                    |
+| `MAIL_FROM_NAME` / `MAIL_FROM_ADDRESS`          |  ✓  | KMG / contactus@kmgtek.com      | Must be a verified sender                                                                   |
+| `MAIL_NOTIFY_ADDRESSES`                         |  ✓  | contactus@kmgtek.com            | Staff inbox for new leads/applications (comma-separated)                                    |
 | `RATE_LIMIT_PER_MINUTE`                         |     | `120`                           | Global default per IP (per-endpoint limits are stricter)                                    |
 | `LOG_LEVEL`                                     |     | `info`                          | `fatal…trace`                                                                               |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`      |     | admin@kmgtek.com / ChangeMe123! | Only read by the seed script                                                                |

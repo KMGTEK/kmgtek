@@ -151,7 +151,6 @@ ${button('{{leadUrl}}', 'Open in admin')}`.trim(),
   <li><a href="{{siteUrl}}/case-studies">Case studies</a> — outcomes we have delivered for clients.</li>
   <li><a href="{{siteUrl}}/careers">Careers</a> — if you were writing about a role.</li>
 </ul>
-<p>If your enquiry is urgent, call us at {{companyPhone}}.</p>
 ${signature}`.trim(),
     variables: ['name'],
   },

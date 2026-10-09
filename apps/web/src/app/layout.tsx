@@ -5,6 +5,7 @@ import * as React from 'react';
 import { COMPANY } from '@kmg/shared';
 
 import { Providers } from '@/components/providers';
+import { CookieConsentBanner } from '@/components/shared/cookie-consent';
 import { JsonLd } from '@/components/shared/json-ld';
 import { GoogleAnalytics, PageViewTracker } from '@/lib/analytics';
 import { getSettings } from '@/lib/api/public';
@@ -98,6 +99,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to content
         </a>
         <Providers>{children}</Providers>
+        <CookieConsentBanner />
         <JsonLd
           data={[
             organizationJsonLd(settings.company, settings.social),

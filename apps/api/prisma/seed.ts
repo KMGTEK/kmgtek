@@ -14,6 +14,7 @@ loadEnv({ path: join(__dirname, '..', '..', '..', '.env'), quiet: true });
 import { PrismaClient, type Prisma } from '@prisma/client';
 import {
   COMPANY,
+  DEFAULT_LOGO_URL,
   PERMISSIONS,
   ROLES,
   ROLE_PERMISSIONS,
@@ -174,6 +175,81 @@ async function seedEmailTemplates(): Promise<void> {
     });
   }
   log(`email templates: ${EMAIL_TEMPLATES.length}`);
+}
+
+/**
+ * Settings and templates are never overwritten on re-seed (admin edits win), so values an earlier
+ * release shipped as defaults and a later one retired are rewritten here — only while they still
+ * hold the retired value.
+ */
+async function refreshRetiredDefaults(): Promise<void> {
+  const OLD_EMAIL = 'recruiting@kmgtek.com';
+  const OLD_PHONE = '(908) 466-6679';
+
+  const patchGroup = async (group: string, apply: (value: Record<string, unknown>) => boolean): Promise<void> => {
+    const row = await prisma.websiteSetting.findUnique({ where: { group } });
+    if (!row) return;
+    const value = { ...(row.value as Record<string, unknown>) };
+    if (!apply(value)) return;
+    await prisma.websiteSetting.update({ where: { group }, data: { value: value as Prisma.InputJsonValue } });
+  };
+
+  await patchGroup('company', (v) => {
+    const changed = v.email === OLD_EMAIL || v.phone === OLD_PHONE;
+    if (v.email === OLD_EMAIL) v.email = COMPANY.email;
+    if (v.phone === OLD_PHONE) v.phone = COMPANY.phone;
+    return changed;
+  });
+
+  await patchGroup('branding', (v) => {
+    if (v.logoUrl !== '/logo.svg') return false;
+    v.logoUrl = DEFAULT_LOGO_URL;
+    return true;
+  });
+
+  await patchGroup('features', (v) => 'techMarquee' in v && delete v.techMarquee);
+
+  await patchGroup('legal', (v) => {
+    let changed = false;
+    for (const key of ['privacyPolicy', 'terms']) {
+      const current = v[key];
+      if (typeof current !== 'string') continue;
+      const next = current.split(OLD_EMAIL).join(COMPANY.email).replace(`, phone ${OLD_PHONE}.`, '.');
+      if (next !== current) {
+        v[key] = next;
+        changed = true;
+      }
+    }
+    return changed;
+  });
+
+  await patchGroup('email', (v) => {
+    let changed = false;
+    if (v.fromAddress === OLD_EMAIL) {
+      v.fromAddress = COMPANY.email;
+      changed = true;
+    }
+    if (Array.isArray(v.notifyAddresses) && v.notifyAddresses.includes(OLD_EMAIL)) {
+      v.notifyAddresses = v.notifyAddresses.map((address) => (address === OLD_EMAIL ? COMPANY.email : address));
+      changed = true;
+    }
+    return changed;
+  });
+
+  const templates = await prisma.emailTemplate.findMany({ where: { html: { contains: '{{companyPhone}}' } } });
+  for (const template of templates) {
+    const html = template.html.replace(/\n?<p>[^<]*\{\{companyPhone\}\}[^<]*<\/p>/g, '');
+    await prisma.emailTemplate.update({ where: { key: template.key }, data: { html } });
+  }
+  const hero = await prisma.contentBlock.findUnique({ where: { key: 'home.hero' } });
+  const heroData = hero?.data as Record<string, unknown> | undefined;
+  if (heroData?.primaryCtaLabel === 'Book Consultation') {
+    await prisma.contentBlock.update({
+      where: { key: 'home.hero' },
+      data: { data: { ...heroData, primaryCtaLabel: 'Get Started' } as Prisma.InputJsonValue },
+    });
+  }
+  log('retired defaults refreshed');
 }
 
 /* ─────────────────────── Technologies & services ─────────────────────── */
@@ -790,6 +866,7 @@ async function main(): Promise<void> {
   // vs "Customized" badge. Pre-creating rows here would make every block show as
   // "Customized" immediately after seeding, which is wrong.
   await seedEmailTemplates();
+  await refreshRetiredDefaults();
   const technologyIds = await seedTechnologies();
   await seedServices(technologyIds);
 

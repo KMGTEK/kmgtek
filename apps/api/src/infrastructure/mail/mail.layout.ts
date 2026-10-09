@@ -8,8 +8,9 @@ export interface LayoutOptions {
 }
 
 /**
- * Branded HTML wrapper applied to every outgoing email: orange header with the
- * logo, white content card, and a footer with the company address.
+ * Branded HTML wrapper applied to every outgoing email: white header with the logo
+ * and an orange rule (the logo is orange, so it needs a light backdrop), white content
+ * card, and a footer with the company address.
  */
 export function renderLayout(bodyHtml: string, options: LayoutOptions): string {
   const primary = options.primaryColor || BRAND_COLORS.primary;
@@ -27,7 +28,7 @@ export function renderLayout(bodyHtml: string, options: LayoutOptions): string {
         <td align="center">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);">
             <tr>
-              <td style="background:${primary};padding:20px 28px;" align="left">
+              <td style="background:#ffffff;border-bottom:4px solid ${primary};padding:20px 28px;" align="left">
                 <a href="${options.webUrl}" style="text-decoration:none;color:#ffffff;font-size:20px;font-weight:700;">
                   <img src="${options.logoUrl}" alt="${COMPANY.displayName}" height="36" style="height:36px;vertical-align:middle;border:0;" />
                 </a>
@@ -42,9 +43,7 @@ export function renderLayout(bodyHtml: string, options: LayoutOptions): string {
               <td style="background:${BRAND_COLORS.ink};color:#b8bcc6;padding:22px 28px;font-size:12px;line-height:1.6;">
                 <strong style="color:#ffffff;">${COMPANY.displayName}</strong><br />
                 ${COMPANY.address.full}<br />
-                <a href="mailto:${COMPANY.email}" style="color:${primary};text-decoration:none;">${COMPANY.email}</a>
-                &nbsp;·&nbsp;
-                <a href="${COMPANY.phoneHref}" style="color:${primary};text-decoration:none;">${COMPANY.phone}</a><br /><br />
+                <a href="mailto:${COMPANY.email}" style="color:${primary};text-decoration:none;">${COMPANY.email}</a><br /><br />
                 © ${year} ${COMPANY.legalName}. All rights reserved.
               </td>
             </tr>

@@ -1,15 +1,16 @@
-import { ArrowRightIcon, MailIcon, MapPinIcon, PhoneIcon, ShieldCheckIcon } from 'lucide-react';
+import { ArrowRightIcon, MailIcon, MapPinIcon, ShieldCheckIcon } from 'lucide-react';
 import Link from 'next/link';
 import * as React from 'react';
 
 import { Logo } from '@/components/brand/logo';
 import { SocialIcon, type SocialKey } from '@/components/brand/social-icons';
 import { Container } from '@/components/layout/container';
+import { CookieSettingsButton } from '@/components/shared/cookie-consent';
 import { Button } from '@/components/ui/button';
 import { footerNav, legalNav } from '@/config/nav';
 import { siteConfig } from '@/config/site';
 import { getContentBlock, getSettings } from '@/lib/api/public';
-import { cn, phoneToHref } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 const KNOWN_SOCIAL_KEYS: SocialKey[] = ['linkedin', 'twitter', 'github', 'facebook', 'youtube', 'instagram'];
 
@@ -44,7 +45,7 @@ export async function SiteFooter({ className }: { className?: string }) {
           <div className="flex flex-wrap gap-3">
             <Button asChild size="lg" variant="gradient">
               <Link href="/contact">
-                {siteConfig.primaryCta.label} <ArrowRightIcon className="size-4" />
+                Get in Touch <ArrowRightIcon className="size-4" />
               </Link>
             </Button>
             <Button
@@ -68,12 +69,6 @@ export async function SiteFooter({ className }: { className?: string }) {
             <li className="flex items-start gap-2.5">
               <MapPinIcon className="text-brand-400 mt-0.5 size-4 shrink-0" aria-hidden />
               <span>{settings.company.address}</span>
-            </li>
-            <li className="flex items-center gap-2.5">
-              <PhoneIcon className="text-brand-400 size-4 shrink-0" aria-hidden />
-              <a href={phoneToHref(settings.company.phone)} className="hover:text-white">
-                {settings.company.phone}
-              </a>
             </li>
             <li className="flex items-center gap-2.5">
               <MailIcon className="text-brand-400 size-4 shrink-0" aria-hidden />
@@ -142,6 +137,9 @@ export async function SiteFooter({ className }: { className?: string }) {
                 </Link>
               </li>
             ))}
+            <li>
+              <CookieSettingsButton className="hover:text-brand-400 cursor-pointer transition-colors" />
+            </li>
           </ul>
         </Container>
       </div>

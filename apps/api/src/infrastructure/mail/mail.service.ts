@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { COMPANY, type EmailTemplateKey } from '@kmg/shared';
+import { COMPANY, DEFAULT_LOGO_URL, type EmailTemplateKey } from '@kmg/shared';
 import Handlebars from 'handlebars';
 import { AppConfigService } from '../../config/config.module';
 import { stripHtml } from '../../common/utils/sanitize.util';
@@ -167,7 +167,6 @@ export class MailService {
     return {
       companyName: COMPANY.displayName,
       companyEmail: COMPANY.email,
-      companyPhone: COMPANY.phone,
       companyAddress: COMPANY.address.full,
       siteUrl: this.config.webUrl,
       year: new Date().getFullYear(),
@@ -199,7 +198,7 @@ export class MailService {
       .findUnique({ where: { group: 'branding' } })
       .catch(() => null);
     const value = (row?.value ?? {}) as Record<string, unknown>;
-    const logo = typeof value.logoUrl === 'string' && value.logoUrl ? value.logoUrl : '/logo.svg';
+    const logo = typeof value.logoUrl === 'string' && value.logoUrl ? value.logoUrl : DEFAULT_LOGO_URL;
     return logo.startsWith('http') ? logo : `${this.config.webUrl}${logo}`;
   }
 }

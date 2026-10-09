@@ -462,7 +462,6 @@ export interface WebsiteSettings {
   };
   /** Super-admin-only kill switches for optional public-site sections. */
   features: {
-    techMarquee: boolean;
     companyIntro: boolean;
     industries: boolean;
     whyChooseUs: boolean;

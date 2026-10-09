@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRightIcon, ChevronRightIcon, MenuIcon, PhoneIcon, UserIcon } from 'lucide-react';
+import { ArrowRightIcon, ChevronRightIcon, MenuIcon, UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import * as React from 'react';
@@ -33,11 +33,11 @@ import { Separator } from '@/components/ui/separator';
 import { marketingNav, isNavItemActive } from '@/config/nav';
 import { siteConfig } from '@/config/site';
 import { useAuth } from '@/lib/auth/auth-provider';
-import { cn, phoneToHref } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 export interface SiteHeaderProps {
   /** Company contact info shown in the utility bar — admin-editable via Website Settings. */
-  company: Pick<WebsiteSettings['company'], 'tagline' | 'phone' | 'email'>;
+  company: Pick<WebsiteSettings['company'], 'tagline' | 'email'>;
   /** Admin-uploaded logo (Website Settings → Branding). Falls back to the built-in mark. */
   logoUrl?: string | null;
 }
@@ -78,15 +78,9 @@ export function SiteHeader({ company, logoUrl }: SiteHeaderProps) {
       <div className="bg-ink-950 text-ink-200 hidden md:block dark:bg-ink-900/60">
         <div className="container-page flex h-9 items-center justify-between text-xs">
           <p className="truncate">{company.tagline}</p>
-          <div className="flex items-center gap-5">
-            <a href={phoneToHref(company.phone)} className="hover:text-brand-300 inline-flex items-center gap-1.5">
-              <PhoneIcon className="size-3.5" aria-hidden />
-              {company.phone}
-            </a>
-            <a href={`mailto:${company.email}`} className="hover:text-brand-300">
-              {company.email}
-            </a>
-          </div>
+          <a href={`mailto:${company.email}`} className="hover:text-brand-300">
+            {company.email}
+          </a>
         </div>
       </div>
 
@@ -259,10 +253,7 @@ export function SiteHeader({ company, logoUrl }: SiteHeaderProps) {
                     ) : null}
                   </div>
 
-                  <div className="text-muted-foreground mt-6 space-y-1 text-sm">
-                    <a href={phoneToHref(company.phone)} className="block">
-                      {company.phone}
-                    </a>
+                  <div className="text-muted-foreground mt-6 text-sm">
                     <a href={`mailto:${company.email}`} className="block">
                       {company.email}
                     </a>

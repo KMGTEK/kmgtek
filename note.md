@@ -8,11 +8,10 @@ an IT consulting and talent solutions company (Cloud, DevOps, Platform Engineeri
 One monorepo, two deployables: a **NestJS** REST API and a **Next.js** front end that serves the
 public site, the candidate portal and the staff admin portal.
 
-|               |                                                       |
-| ------------- | ----------------------------------------------------- |
-| 📧 Recruiting | [recruiting@kmgtek.com](mailto:recruiting@kmgtek.com) |
-| ☎️ Phone      | (908) 466-6679                                        |
-| 📍 Office     | 180 Talmadge Rd, Suite# 599, Edison, NJ 08817         |
+|            |                                                     |
+| ---------- | --------------------------------------------------- |
+| 📧 Contact | [contactus@kmgtek.com](mailto:contactus@kmgtek.com) |
+| 📍 Office  | 180 Talmadge Rd, Suite# 599, Edison, NJ 08817       |
 
 ---
 

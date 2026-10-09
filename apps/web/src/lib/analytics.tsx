@@ -4,6 +4,7 @@ import Script from 'next/script';
 import { usePathname, useSearchParams } from 'next/navigation';
 import * as React from 'react';
 
+import { useCookieConsent } from '@/lib/cookie-consent';
 import { API_BASE_PATH, publicEnv } from '@/lib/env';
 
 const SESSION_KEY = 'kmg_sid';
@@ -64,12 +65,13 @@ export function trackPageView(path: string, title?: string) {
 export function PageViewTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const consent = useCookieConsent();
 
   React.useEffect(() => {
-    if (!pathname) return;
+    if (!pathname || consent !== 'accepted') return;
     const query = searchParams?.toString();
     trackPageView(query ? `${pathname}?${query}` : pathname);
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, consent]);
 
   return null;
 }
@@ -80,8 +82,9 @@ export function PageViewTracker() {
  * to the build-time `NEXT_PUBLIC_GA_ID` env var, then renders nothing if neither is set.
  */
 export function GoogleAnalytics({ id: idProp }: { id?: string | null } = {}) {
+  const consent = useCookieConsent();
   const id = idProp ?? publicEnv.gaId;
-  if (!id) return null;
+  if (!id || consent !== 'accepted') return null;
   return (
     <>
       <Script src={`https://www.googletagmanager.com/gtag/js?id=${id}`} strategy="afterInteractive" />

@@ -1,4 +1,4 @@
-import { MailIcon, MapPinIcon, PhoneIcon } from 'lucide-react';
+import { MailIcon, MapPinIcon } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import { COMPANY, type WebsiteSettings } from '@kmg/shared';
@@ -12,7 +12,6 @@ import { SocialIcon, type SocialKey } from '@/components/brand/social-icons';
 import { Card } from '@/components/ui/card';
 import { getContentBlock, getServices, getSettings } from '@/lib/api/public';
 import { breadcrumbJsonLd, buildMetadata } from '@/lib/seo';
-import { phoneToHref } from '@/lib/utils';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Contact',
@@ -67,12 +66,6 @@ export default async function ContactPage() {
                 <li className="flex items-start gap-2.5">
                   <MapPinIcon className="text-primary-text dark:text-brand-300 mt-0.5 size-4 shrink-0" aria-hidden />
                   <span>{settings.company.address}</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <PhoneIcon className="text-primary-text dark:text-brand-300 size-4 shrink-0" aria-hidden />
-                  <a href={phoneToHref(settings.company.phone)} className="hover:underline">
-                    {settings.company.phone}
-                  </a>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <MailIcon className="text-primary-text dark:text-brand-300 size-4 shrink-0" aria-hidden />

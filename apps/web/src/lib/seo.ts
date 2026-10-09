@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
 
-import { COMPANY, type CaseStudy, type FAQ, type Job, type Service, type WebsiteSettings } from '@kmg/shared';
+import {
+  COMPANY,
+  DEFAULT_LOGO_URL,
+  type CaseStudy,
+  type FAQ,
+  type Job,
+  type Service,
+  type WebsiteSettings,
+} from '@kmg/shared';
 
 import { publicEnv } from '@/lib/env';
 import { stripHtml, truncate } from '@/lib/utils';
@@ -91,11 +99,10 @@ type Json = Record<string, unknown>;
  * (from `getSettings()`) to reflect what an admin configured in Website Settings.
  */
 export function organizationJsonLd(
-  company: Pick<WebsiteSettings['company'], 'name' | 'description' | 'email' | 'phone' | 'address'> = {
+  company: Pick<WebsiteSettings['company'], 'name' | 'description' | 'email' | 'address'> = {
     name: COMPANY.displayName,
     description: COMPANY.description,
     email: COMPANY.email,
-    phone: COMPANY.phone,
     address: COMPANY.address.full,
   },
   social: WebsiteSettings['social'] = COMPANY.social,
@@ -107,16 +114,14 @@ export function organizationJsonLd(
     name: company.name,
     legalName: COMPANY.legalName,
     url: publicEnv.siteUrl,
-    logo: `${publicEnv.siteUrl}/logo.svg`,
+    logo: `${publicEnv.siteUrl}${DEFAULT_LOGO_URL}`,
     description: company.description,
     email: company.email,
-    telephone: company.phone,
     foundingDate: String(COMPANY.foundedYear),
     address: { '@type': 'PostalAddress', streetAddress: company.address },
     contactPoint: [
       {
         '@type': 'ContactPoint',
-        telephone: company.phone,
         email: company.email,
         contactType: 'sales',
         areaServed: 'US',
@@ -205,7 +210,7 @@ export function jobPostingJsonLd(job: Job): Json {
       '@type': 'Organization',
       name: COMPANY.displayName,
       sameAs: publicEnv.siteUrl,
-      logo: `${publicEnv.siteUrl}/logo.svg`,
+      logo: `${publicEnv.siteUrl}${DEFAULT_LOGO_URL}`,
     },
     jobLocationType: job.workMode === 'REMOTE' ? 'TELECOMMUTE' : undefined,
     jobLocation: {

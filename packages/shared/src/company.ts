@@ -11,9 +11,8 @@ export const COMPANY = {
   heroHeadline: 'Turning Data Into Decisions Through Business Analytics, Cloud & AI',
   description:
     'KMG Technologies is a business analytics consulting and talent solutions company helping enterprises turn data into decisions — with Cloud and AI capabilities that support and extend that core practice — and connecting exceptional engineers with exceptional opportunities.',
-  email: 'recruiting@kmgtek.com',
-  phone: '(908) 466-6679',
-  phoneHref: 'tel:+19084666679',
+  email: 'contactus@kmgtek.com',
+  phone: '',
   website: 'https://www.kmgtek.com',
   address: {
     street: '180 Talmadge Rd, Suite# 599',
@@ -38,6 +37,9 @@ export const COMPANY = {
   },
   foundedYear: 2020,
 } as const;
+
+/** Default site logo (transparent PNG in `apps/web/public`); admins can replace it in Website Settings → Branding. */
+export const DEFAULT_LOGO_URL = '/kmg-logo.png';
 
 /** Brand palette derived from the logo (orange + red) plus a neutral ink for text/dark UI. */
 export const BRAND_COLORS = {

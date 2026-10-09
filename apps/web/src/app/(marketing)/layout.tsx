@@ -16,7 +16,10 @@ export default async function MarketingLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-svh flex-col">
-      <SiteHeader company={settings.company} logoUrl={settings.branding.logoUrl} />
+      <SiteHeader
+        company={{ tagline: settings.company.tagline, email: settings.company.email }}
+        logoUrl={settings.branding.logoUrl}
+      />
       <main id="main-content" className="flex-1">
         {children}
       </main>

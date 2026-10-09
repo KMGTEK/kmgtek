@@ -11,7 +11,7 @@ describe('buildIcsEvent', () => {
       url: 'https://meet.jit.si/kmg-abc1234567',
       start,
       durationMinutes: 45,
-      organizer: { name: 'KMG Talent Team', email: 'recruiting@kmgtek.com' },
+      organizer: { name: 'KMG Talent Team', email: 'contactus@kmgtek.com' },
       attendees: [
         { email: 'candidate@example.com', name: 'Jane Candidate' },
         { email: 'interviewer@kmgtek.com', name: 'Alex Interviewer' },
@@ -26,7 +26,7 @@ describe('buildIcsEvent', () => {
     // 45 minutes later.
     expect(ics).toContain('DTEND:20260310T151500Z');
     expect(ics).toContain('SUMMARY:Technical interview — Senior DevOps Engineer');
-    expect(ics).toContain('ORGANIZER;CN=KMG Talent Team:mailto:recruiting@kmgtek.com');
+    expect(ics).toContain('ORGANIZER;CN=KMG Talent Team:mailto:contactus@kmgtek.com');
     expect(ics).toContain('ATTENDEE;CN=Jane Candidate;RSVP=TRUE:mailto:candidate@example.com');
     expect(ics).toContain('ATTENDEE;CN=Alex Interviewer;RSVP=TRUE:mailto:interviewer@kmgtek.com');
     expect(ics).toContain('URL:https://meet.jit.si/kmg-abc1234567');
@@ -41,7 +41,7 @@ describe('buildIcsEvent', () => {
       description: 'Line one\nLine two',
       start,
       durationMinutes: 30,
-      organizer: { name: 'KMG', email: 'recruiting@kmgtek.com' },
+      organizer: { name: 'KMG', email: 'contactus@kmgtek.com' },
       attendees: [{ email: 'candidate@example.com' }],
     });
 
@@ -57,7 +57,7 @@ describe('buildIcsEvent', () => {
       title: longTitle,
       start,
       durationMinutes: 30,
-      organizer: { name: 'KMG', email: 'recruiting@kmgtek.com' },
+      organizer: { name: 'KMG', email: 'contactus@kmgtek.com' },
       attendees: [],
     });
 

@@ -6,7 +6,7 @@ bucket and the audit trail are treated as production-critical, not nice-to-haves
 
 ## Reporting a vulnerability
 
-Email **security@kmgtek.com** (or [recruiting@kmgtek.com](mailto:recruiting@kmgtek.com) if that
+Email **security@kmgtek.com** (or [contactus@kmgtek.com](mailto:contactus@kmgtek.com) if that
 address bounces) with a description, affected URL/endpoint, reproduction steps and impact. Please do
 not open a public issue, do not access or modify data that is not yours, and do not run automated
 scanners against production.

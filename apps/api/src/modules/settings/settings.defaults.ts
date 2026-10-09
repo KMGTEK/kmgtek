@@ -1,4 +1,4 @@
-import { BRAND_COLORS, COMPANY, type WebsiteSettings } from '@kmg/shared';
+import { BRAND_COLORS, COMPANY, DEFAULT_LOGO_URL, type WebsiteSettings } from '@kmg/shared';
 
 export const SETTINGS_GROUPS = [
   'company',
@@ -55,9 +55,9 @@ restrict certain processing. Email <a href="mailto:${COMPANY.email}">${COMPANY.e
 within 30 days.</p>
 
 <h3>Cookies</h3>
-<p>We use strictly necessary cookies for authentication and, where enabled, first-party analytics cookies to
-understand how the site is used. You can block cookies in your browser, though parts of the candidate portal will
-stop working.</p>
+<p>We use strictly necessary cookies for authentication. Analytics cookies are only set if you choose "Accept" in
+the cookie banner shown on your first visit; choosing "Decline" keeps them off. You can also block cookies in your
+browser, though parts of the candidate portal will stop working.</p>
 
 <h3>Security</h3>
 <p>Data is encrypted in transit, passwords are hashed, resumes are stored in private object storage and access is
@@ -65,7 +65,7 @@ restricted to authorized personnel.</p>
 
 <h3>Contact</h3>
 <p>${COMPANY.legalName}, ${COMPANY.address.full}. Email
-<a href="mailto:${COMPANY.email}">${COMPANY.email}</a>, phone ${COMPANY.phone}.</p>
+<a href="mailto:${COMPANY.email}">${COMPANY.email}</a>.</p>
 `.trim();
 
 const TERMS = `
@@ -126,7 +126,7 @@ export function defaultSettings(env?: {
       mapEmbedUrl: COMPANY.mapEmbedUrl,
     },
     branding: {
-      logoUrl: '/logo.svg',
+      logoUrl: DEFAULT_LOGO_URL,
       faviconUrl: '/favicon.ico',
       primaryColor: BRAND_COLORS.primary,
       accentColor: BRAND_COLORS.accent,
@@ -171,7 +171,6 @@ export function defaultSettings(env?: {
       terms: TERMS,
     },
     features: {
-      techMarquee: true,
       companyIntro: true,
       industries: true,
       whyChooseUs: true,

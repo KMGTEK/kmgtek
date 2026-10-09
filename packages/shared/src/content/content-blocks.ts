@@ -277,7 +277,7 @@ export const DEFAULT_CONTENT_BLOCKS: { [K in ContentBlockKey]: ContentBlockData<
     headlineSuffix: ', Cloud & AI',
     description: COMPANY.description,
     trustPoints: ['Data-driven decisions', 'Governed & secure', 'Fixed-fee assessments'],
-    primaryCtaLabel: 'Book Consultation',
+    primaryCtaLabel: 'Get Started',
     secondaryCtaLabel: 'Explore Services',
   },
   'home.company_intro': {

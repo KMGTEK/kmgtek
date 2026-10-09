@@ -12,8 +12,6 @@ export const siteConfig = {
   url: publicEnv.siteUrl,
   ogImage: '/opengraph-image',
   email: COMPANY.email,
-  phone: COMPANY.phone,
-  phoneHref: COMPANY.phoneHref,
   address: COMPANY.address,
   mapEmbedUrl: COMPANY.mapEmbedUrl,
   social: COMPANY.social,

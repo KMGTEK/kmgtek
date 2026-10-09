@@ -63,8 +63,8 @@ export const envSchema = z.object({
   SMTP_USER: optional,
   SMTP_PASS: optional,
   MAIL_FROM_NAME: z.string().default('KMG Technologies'),
-  MAIL_FROM_ADDRESS: z.string().default('recruiting@kmgtek.com'),
-  MAIL_NOTIFY_ADDRESSES: z.string().default('recruiting@kmgtek.com'),
+  MAIL_FROM_ADDRESS: z.string().default('contactus@kmgtek.com'),
+  MAIL_NOTIFY_ADDRESSES: z.string().default('contactus@kmgtek.com'),
 
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),

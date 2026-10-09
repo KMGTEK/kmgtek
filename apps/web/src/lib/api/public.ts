@@ -21,6 +21,7 @@ import {
   type TechnologyCategory,
   type Testimonial,
   type WebsiteSettings,
+  DEFAULT_LOGO_URL,
 } from '@kmg/shared';
 
 import { CACHE_TAGS, emptyPage, fetchData, fetchList } from '@/lib/api/server';
@@ -95,7 +96,7 @@ export const FALLBACK_SETTINGS: WebsiteSettings = {
     mapEmbedUrl: COMPANY.mapEmbedUrl,
   },
   branding: {
-    logoUrl: '/logo.svg',
+    logoUrl: DEFAULT_LOGO_URL,
     faviconUrl: '/logo-mark.svg',
     primaryColor: '#F39C2C',
     accentColor: '#E5312F',
@@ -124,7 +125,6 @@ export const FALLBACK_SETTINGS: WebsiteSettings = {
   },
   legal: { privacyPolicy: '', terms: '' },
   features: {
-    techMarquee: true,
     companyIntro: true,
     industries: true,
     whyChooseUs: true,

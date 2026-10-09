@@ -73,9 +73,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               ))}
             </ul>
           </div>
-          <p className="text-ink-500 text-xs">
-            {COMPANY.address.full} · {COMPANY.phone}
-          </p>
+          <p className="text-ink-500 text-xs">{COMPANY.address.full}</p>
         </div>
       </aside>
     </div>
