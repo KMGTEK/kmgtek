@@ -1,0 +1,17 @@
+# pnpm settings for this standalone project (it is not part of a workspace).
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@scarf/scarf': false
+  esbuild: true
+  unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - '@tanstack/query-core@5.103.1'
+  - '@tanstack/react-query@5.103.1'
+  - '@types/node@22.20.3'
+
+onlyBuiltDependencies:
+  - sharp
+  - esbuild
+  - unrs-resolver

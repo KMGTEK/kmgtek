@@ -1,0 +1,23 @@
+# pnpm settings for this standalone project (it is not part of a workspace).
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  esbuild: true
+  prisma: true
+  unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - '@aws-sdk/client-s3@3.1133.0'
+  - '@aws-sdk/s3-request-presigner@3.1133.0'
+  - '@types/node@22.20.3'
+
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - prisma
+  - '@nestjs/core'
+  - esbuild
+  - unrs-resolver

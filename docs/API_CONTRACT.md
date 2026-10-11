@@ -1,8 +1,8 @@
 # API Contract (v1)
 
-This is the binding contract between `apps/api` (NestJS) and `apps/web` (Next.js).
-Types referenced here live in `packages/shared/src/types.ts`; request validation schemas
-live in `packages/shared/src/schemas/*`. The live OpenAPI spec is served at `/api/docs`.
+This is the binding contract between `backend` (NestJS) and `frontend` (Next.js).
+Types referenced here live in `backend/shared/src/types.ts`; request validation schemas
+live in `backend/shared/src/schemas/*`. The frontend keeps its own copy in `frontend/shared/` — keep both in sync. The live OpenAPI spec is served at `/api/docs`.
 
 ## Conventions
 

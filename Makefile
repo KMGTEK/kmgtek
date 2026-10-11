@@ -7,7 +7,7 @@ SHELL       := /bin/bash
 COMPOSE     ?= docker compose
 DEV_COMPOSE := $(COMPOSE) -f docker-compose.dev.yml
 REGISTRY    ?= ghcr.io/kmg-technologies
-VERSION     ?= $(shell node -p "require('./package.json').version" 2>/dev/null || echo 0.0.0)
+VERSION     ?= $(shell node -p "require('./backend/package.json').version" 2>/dev/null || echo 0.0.0)
 REVISION    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 K8S_STAGING := infra/k8s/overlays/staging
 K8S_PROD    := infra/k8s/overlays/production
@@ -19,13 +19,19 @@ help: ## Show this help
 
 # ───────────────────────────── local development ────────────────────────────
 .PHONY: install
-install: ## Install workspace dependencies and build @kmg/shared
-	pnpm install
-	pnpm --filter "@kmg/shared" build
+install: ## Install dependencies in backend/ and frontend/ (independent projects)
+	cd backend && pnpm install
+	cd frontend && pnpm install
 
 .PHONY: dev
-dev: dev-up ## Start backing services and run api + web with hot reload
-	pnpm dev
+dev: dev-up ## Start backing services and run backend + frontend with hot reload
+	@trap 'kill 0' INT TERM EXIT; (cd backend && pnpm dev) & (cd frontend && pnpm dev) & wait
+
+.PHONY: dev-backend dev-frontend
+dev-backend: ## Run only the backend (NestJS API on :4000)
+	cd backend && pnpm dev
+dev-frontend: ## Run only the frontend (Next.js on :3000)
+	cd frontend && pnpm dev
 
 .PHONY: dev-up
 dev-up: ## Start postgres, redis, minio and mailpit for local development
@@ -43,31 +49,36 @@ dev-reset: ## Destroy local data volumes and start clean (DESTRUCTIVE)
 
 .PHONY: migrate
 migrate: ## Create/apply Prisma migrations against the local database
-	pnpm db:migrate
+	cd backend && pnpm prisma:migrate
 
 .PHONY: migrate-deploy
 migrate-deploy: ## Apply committed migrations without generating new ones
-	pnpm --filter "@kmg/api" exec prisma migrate deploy
+	cd backend && pnpm prisma:deploy
 
 .PHONY: seed
 seed: ## Seed roles, settings, admin user and demo content
-	pnpm db:seed
+	cd backend && pnpm prisma:seed
 
 .PHONY: studio
 studio: ## Open Prisma Studio
-	pnpm db:studio
+	cd backend && pnpm prisma:studio
 
 .PHONY: lint test typecheck build format
-lint: ## Lint every workspace package
-	pnpm lint
-typecheck: ## Typecheck every workspace package
-	pnpm typecheck
-test: ## Run unit tests
-	pnpm test
-build: ## Build shared, api and web
-	pnpm build
-format: ## Prettier --write
-	pnpm format
+lint: ## Lint backend and frontend
+	cd backend && pnpm lint
+	cd frontend && pnpm lint
+typecheck: ## Typecheck backend and frontend
+	cd backend && pnpm typecheck
+	cd frontend && pnpm typecheck
+test: ## Run unit tests for backend and frontend
+	cd backend && pnpm test
+	cd frontend && pnpm test
+build: ## Build backend and frontend
+	cd backend && pnpm build
+	cd frontend && pnpm build
+format: ## Prettier --write in backend and frontend
+	cd backend && pnpm format
+	cd frontend && pnpm format
 
 # ───────────────────────────── full stack (compose) ─────────────────────────
 .PHONY: up
@@ -98,11 +109,11 @@ ps: ## Show compose service status
 # ───────────────────────────── container images ─────────────────────────────
 .PHONY: build-images
 build-images: ## Build both production images locally
-	docker build -f infra/docker/api.Dockerfile -t $(REGISTRY)/kmg-api:$(VERSION) \
-	  --build-arg VERSION=$(VERSION) --build-arg REVISION=$(REVISION) .
-	docker build -f infra/docker/web.Dockerfile -t $(REGISTRY)/kmg-web:$(VERSION) \
+	docker build -t $(REGISTRY)/kmg-api:$(VERSION) \
+	  --build-arg VERSION=$(VERSION) --build-arg REVISION=$(REVISION) backend
+	docker build -t $(REGISTRY)/kmg-web:$(VERSION) \
 	  --build-arg VERSION=$(VERSION) --build-arg REVISION=$(REVISION) \
-	  --build-arg NEXT_PUBLIC_SITE_URL=$${NEXT_PUBLIC_SITE_URL:-http://localhost:3000} .
+	  --build-arg NEXT_PUBLIC_SITE_URL=$${NEXT_PUBLIC_SITE_URL:-http://localhost:3000} frontend
 
 .PHONY: push-images
 push-images: ## Push both images to the registry

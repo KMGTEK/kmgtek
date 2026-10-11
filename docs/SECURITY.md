@@ -43,7 +43,7 @@ engineering, and anything affecting only the seeded demo data on a development e
 ## 2. Authorization (RBAC)
 
 Roles map to `<resource>:<action>` permissions in one place —
-[`packages/shared/src/constants.ts`](../packages/shared/src/constants.ts) (`ROLE_PERMISSIONS`) — which
+[`backend/shared/src/constants.ts`](../backend/shared/src/constants.ts) (`ROLE_PERMISSIONS`; mirrored in `frontend/shared/`) — which
 the API enforces with a `PermissionsGuard` on every admin route, and which the admin UI uses to build
 its navigation. The web UI hiding a button is convenience; the guard is the control.
 
@@ -161,7 +161,7 @@ each pod counts separately and the effective limit multiplies by the replica cou
 
 ## 9. Dependency & supply-chain security
 
-- `pnpm install --frozen-lockfile` everywhere; the lockfile is committed and reviewed.
+- `pnpm install --frozen-lockfile` everywhere (in `backend/` and `frontend/`); both lockfiles are committed and reviewed.
 - **Dependabot** (`.github/dependabot.yml`) opens grouped weekly PRs for npm, GitHub Actions and the
   Docker base images.
 - **Trivy** scans both published images for OS and library CVEs on every release; results are uploaded

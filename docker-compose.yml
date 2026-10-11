@@ -6,7 +6,7 @@
 #   docker compose --profile seed run --rm seed
 #
 # Everything is served through nginx on :80 (and :443 once certs are mounted).
-# For local development of the apps themselves use docker-compose.dev.yml + `pnpm dev`.
+# For local development of the apps themselves use docker-compose.dev.yml + `pnpm dev` inside backend/ and frontend/.
 
 x-logging: &default-logging
   driver: json-file
@@ -154,8 +154,8 @@ services:
   # ─────────────────────────────── application ──────────────────────────────
   api:
     build:
-      context: .
-      dockerfile: infra/docker/api.Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
       target: runtime
       args:
         VERSION: ${KMG_VERSION:-1.0.0}
@@ -194,8 +194,8 @@ services:
   seed:
     profiles: ['seed']
     build:
-      context: .
-      dockerfile: infra/docker/api.Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
       target: tools
     image: ${IMAGE_REGISTRY:-ghcr.io/kmg-technologies}/kmg-api-tools:${KMG_VERSION:-local}
     restart: 'no'
@@ -214,8 +214,8 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: infra/docker/web.Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
       target: runtime
       args:
         # inlined into the client bundle at build time — rebuild when they change
@@ -235,7 +235,7 @@ services:
     depends_on:
       api: { condition: service_healthy }
     volumes:
-      - web-cache:/app/apps/web/.next/cache # ISR + image optimizer cache
+      - web-cache:/app/.next/cache # ISR + image optimizer cache
     networks: [backend, frontend]
     deploy:
       resources:

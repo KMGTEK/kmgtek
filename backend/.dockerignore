@@ -1,0 +1,19 @@
+# Never bake secrets or local state into an image
+.env
+.env.*
+!.env.example
+uploads
+
+# Rebuilt inside the image
+node_modules
+dist
+shared/dist
+*.tsbuildinfo
+coverage
+
+# Not needed in the build context
+.git
+*.log
+.DS_Store
+Dockerfile
+.dockerignore

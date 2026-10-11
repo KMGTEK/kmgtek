@@ -6,14 +6,15 @@ build here" — read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the why.
 ## Getting set up
 
 ```bash
-corepack enable                                   # pnpm 11, pinned in package.json
+corepack enable                                   # pnpm 11, pinned in each package.json
 docker compose -f docker-compose.dev.yml up -d    # postgres, redis, minio, mailpit
-cp .env.example .env
-pnpm install && pnpm db:migrate && pnpm db:seed
-pnpm dev
+
+# backend/ and frontend/ are independent projects — install and run each one:
+cd backend  && pnpm install && pnpm prisma:migrate && pnpm prisma:seed && pnpm dev   # needs backend/.env
+cd frontend && pnpm install && pnpm dev                                              # in a second terminal
 ```
 
-Node 22 (see `.nvmrc`). If `@kmg/shared` types look stale, rebuild it: `pnpm --filter @kmg/shared build`.
+Node 22. If the shared types look stale, rebuild them: `pnpm build:shared` (inside `backend/` or `frontend/`).
 
 ## Branching
 
@@ -56,7 +57,7 @@ chore(infra): pin the nginx image to 1.28-alpine
 - CI must be green: lint, typecheck, unit tests, API e2e, web build, both image builds.
 - Update the docs in the same PR — especially [docs/API_CONTRACT.md](docs/API_CONTRACT.md) when an
   endpoint changes. The contract is binding for the other app.
-- Database changes ship with a Prisma migration (`pnpm db:migrate`), never a hand-edited schema.
+- Database changes ship with a Prisma migration (`pnpm prisma:migrate` in `backend/`), never a hand-edited schema.
   Migrations must be backwards compatible with the previous release (expand → migrate → contract).
 - At least one review before merge; squash-merge with a Conventional Commit title.
 
@@ -65,13 +66,14 @@ chore(infra): pin the nginx image to 1.28-alpine
 **General**
 
 - TypeScript strict mode; `any` needs a comment justifying it. Prefer `unknown` + a Zod parse.
-- Prettier and ESLint are the style authority — `pnpm format` before pushing; don't argue with the formatter.
+- Prettier and ESLint are the style authority — `pnpm format` (in `backend/` and `frontend/`) before pushing; don't argue with the formatter.
 - Files and directories `kebab-case`; types/components `PascalCase`; variables/functions `camelCase`;
   constants `SCREAMING_SNAKE_CASE`.
-- Shared enums, permissions, upload rules and request schemas belong in `packages/shared` — if the API
-  and the web app both need to know it, it lives there exactly once.
+- Shared enums, permissions, upload rules and request schemas live in each project's `shared/` folder.
+  `backend/shared` and `frontend/shared` are separate copies, so a change to the API contract must be
+  made in both.
 
-**API (`apps/api`)**
+**Backend (`backend/`)**
 
 - Controller → service → Prisma. Controllers validate and shape HTTP; services hold business rules and
   own transactions; no Prisma calls in controllers.
@@ -81,7 +83,7 @@ chore(infra): pin the nginx image to 1.28-alpine
   is an `ApiErrorBody`. Mutating admin routes write an audit entry.
 - Guard every admin route with `@Permissions('<resource>:<action>')` — never rely on the UI hiding a button.
 
-**Web (`apps/web`)**
+**Frontend (`frontend/`)**
 
 - Server Components by default; add `'use client'` only for interactivity.
 - Data fetching: server components for SSR/ISR, TanStack Query for client-side; never fetch the API
@@ -97,15 +99,15 @@ chore(infra): pin the nginx image to 1.28-alpine
 | Change                                 | Expected tests                                                   |
 | -------------------------------------- | ---------------------------------------------------------------- |
 | API service / business rule            | Jest unit test with the Prisma client mocked                     |
-| API endpoint (new or changed contract) | e2e test (`apps/api/test/*.e2e-spec.ts`) against the CI Postgres |
+| API endpoint (new or changed contract) | e2e test (`backend/test/*.e2e-spec.ts`) against the CI Postgres |
 | Auth, RBAC, uploads, rate limiting     | e2e tests for both the allowed and the denied paths              |
 | Web component with logic               | Vitest + Testing Library (behaviour, not implementation details) |
 | Bug fix                                | A test that fails before the fix                                 |
 
 ```bash
-pnpm test                          # all unit tests
-pnpm --filter @kmg/api test:e2e    # needs the dev database running
-pnpm lint && pnpm typecheck
+make test                         # unit tests for backend and frontend
+(cd backend && pnpm test:e2e)     # needs the dev database running
+make lint typecheck
 ```
 
 Write tests from the user's perspective, keep them deterministic (no real network, no sleeps, fixed

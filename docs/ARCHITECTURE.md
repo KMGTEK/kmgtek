@@ -51,7 +51,7 @@ rolling deploys boring.
 ## 2. API layering (clean architecture, pragmatic)
 
 ```
-apps/api/src/
+backend/src/
 ├── main.ts                     # bootstrap: helmet, compression, cookie-parser, pino, Swagger, /api/v1 prefix
 ├── app.module.ts               # composition root
 ├── common/                     # cross-cutting, framework-facing
@@ -219,7 +219,7 @@ facets and public settings) — correctness first, and Postgres is not the bottl
 
 ## 9. Extending the platform
 
-New capability = new module in `apps/api/src/modules/<name>` + route group in `apps/web/src/app` +
+New capability = new module in `backend/src/modules/<name>` + route group in `frontend/src/app` +
 shared types/schemas + permissions in `ROLE_PERMISSIONS`. Because permissions are data
 (`<resource>:<action>`) and the admin shell builds its navigation from the user's `perms`, a new
 module becomes visible to exactly the right roles without touching the shell.

@@ -3,7 +3,7 @@
 Everything needed to run the KmgTechnologies platform outside a laptop: configuration,
 Docker Compose, TLS, Kubernetes, backups, third-party setup and a go-live checklist.
 
-- Images: `infra/docker/api.Dockerfile`, `infra/docker/web.Dockerfile` (build context = repo root)
+- Images: `backend/Dockerfile`, `frontend/Dockerfile` (build context = each project's own folder, e.g. `docker build backend`)
 - Compose: `docker-compose.yml` (full stack), `docker-compose.dev.yml` (backing services)
 - Kubernetes: `infra/k8s/` (Kustomize base + `overlays/staging` + `overlays/production`)
 - CI/CD: `.github/workflows/ci.yml`, `.github/workflows/release.yml`
@@ -14,7 +14,7 @@ Docker Compose, TLS, Kubernetes, backups, third-party setup and a go-live checkl
 
 Source of truth: [`.env.example`](../.env.example). `R` = required in production.
 
-### API (`apps/api`)
+### Backend (`backend/`)
 
 | Variable                                        |  R  | Default                         | Description                                                                                 |
 | ----------------------------------------------- | :-: | ------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -57,7 +57,7 @@ Source of truth: [`.env.example`](../.env.example). `R` = required in production
 
 ¹ unless the pod assumes an IAM role. ² unless the relay allows unauthenticated submission from the VPC.
 
-### Web (`apps/web`)
+### Frontend (`frontend/`)
 
 | Variable               |  R  | Default                 | Description                                                                                                                   |
 | ---------------------- | :-: | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |

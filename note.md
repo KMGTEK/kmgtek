@@ -5,7 +5,7 @@
 The corporate website, lead-generation engine and recruitment platform of **KMG Technologies** —
 an IT consulting and talent solutions company (Cloud, DevOps, Platform Engineering, AI).
 
-One monorepo, two deployables: a **NestJS** REST API and a **Next.js** front end that serves the
+One repo, two independent projects (`backend/` and `frontend/`): a **NestJS** REST API and a **Next.js** front end that serves the
 public site, the candidate portal and the staff admin portal.
 
 |            |                                                     |
@@ -46,8 +46,8 @@ public site, the candidate portal and the staff admin portal.
 | **Sales**          | Leads (read/write) and the dashboard                                    |
 | **Candidate**      | Own profile, résumés, applications and saved jobs (portal only)         |
 
-The permission matrix is defined once in [`packages/shared/src/constants.ts`](packages/shared/src/constants.ts)
-(`ROLE_PERMISSIONS`) and enforced by the API — see [docs/SECURITY.md](docs/SECURITY.md).
+The permission matrix lives in [`backend/shared/src/constants.ts`](backend/shared/src/constants.ts)
+(`ROLE_PERMISSIONS`; the frontend keeps its own copy in `frontend/shared/`) and is enforced by the API — see [docs/SECURITY.md](docs/SECURITY.md).
 
 ---
 
@@ -60,31 +60,35 @@ The permission matrix is defined once in [`packages/shared/src/constants.ts`](pa
 | Data      | PostgreSQL 16+ via Prisma 6, Redis (rate-limit store & cache)                                 |
 | Storage   | S3-compatible object storage (AWS S3 in production, MinIO locally)                            |
 | Email     | Nodemailer + Handlebars templates (Mailpit locally, SES/Postmark in production)               |
-| Tooling   | pnpm 11 workspaces, TypeScript 5.9, Jest (API), Vitest (web), ESLint, Prettier                |
+| Tooling   | pnpm 11 (one install per project), TypeScript 5.9, Jest (API), Vitest (web), ESLint, Prettier                |
 | Delivery  | Docker multi-stage images, docker compose, Kustomize manifests, GitHub Actions → GHCR         |
 
-## Monorepo layout
+## Repository layout
 
 ```
 kmg/
-├── apps/
-│   ├── api/                  # @kmg/api — NestJS REST API (port 4000)
-│   │   └── prisma/           # schema.prisma, migrations, seed.ts
-│   └── web/                  # @kmg/web — Next.js site + portals (port 3000)
-├── packages/
-│   └── shared/               # @kmg/shared — types, zod schemas, constants, static content
+├── backend/                  # NestJS REST API (port 4000) — an independent project
+│   ├── prisma/               # schema.prisma, migrations, seed.ts
+│   ├── shared/               # backend's own copy of types, zod schemas, constants, content
+│   ├── Dockerfile
+│   └── package.json          # own dependencies + lockfile
+├── frontend/                 # Next.js site + portals (port 3000) — an independent project
+│   ├── shared/               # frontend's own copy of the shared code
+│   ├── Dockerfile
+│   └── package.json          # own dependencies + lockfile
 ├── infra/
-│   ├── docker/               # api.Dockerfile, web.Dockerfile, entrypoint
 │   ├── nginx/                # edge proxy config for the compose stack
 │   └── k8s/                  # Kustomize base + staging/production overlays
 ├── docs/                     # API contract, architecture, deployment, security
 ├── docker-compose.yml        # full production-like stack behind nginx
-├── docker-compose.dev.yml    # backing services only, for `pnpm dev`
+├── docker-compose.dev.yml    # backing services only, for local development
 └── Makefile                  # make help
 ```
 
-`@kmg/shared` is consumed by both apps and **must be built before them** (`pnpm --filter @kmg/shared build`);
-every root script already does this for you.
+`backend/` and `frontend/` share no workspace: each has its own `package.json`, lockfile and `node_modules`,
+and is installed, built, tested and deployed on its own. The code in `shared/` (types, zod schemas, constants,
+default content) is **duplicated** in both projects — when the API contract changes, update both copies.
+It is compiled by `pnpm build:shared`, which every script runs for you.
 
 ---
 
@@ -96,12 +100,19 @@ every root script already does this for you.
 
 ```bash
 git clone <repo> kmg && cd kmg
-cp .env.example .env                              # defaults match the dev compose file
 docker compose -f docker-compose.dev.yml up -d    # postgres, redis, minio(+buckets), mailpit
+
+# backend (terminal 1) — configure backend/.env first (DATABASE_URL, JWT_ACCESS_SECRET, ...)
+cd backend
 pnpm install
-pnpm db:migrate                                   # prisma migrate dev
-pnpm db:seed                                      # roles, settings, admin + demo content
-pnpm dev                                          # api :4000 and web :3000 with hot reload
+pnpm prisma:migrate                               # prisma migrate dev
+pnpm prisma:seed                                  # roles, settings, admin + demo content
+pnpm dev                                          # api :4000 with hot reload
+
+# frontend (terminal 2)
+cd frontend
+pnpm install
+pnpm dev                                          # web :3000 with hot reload
 ```
 
 ### Option B — everything in containers
@@ -146,20 +157,22 @@ Demo users are only created when `SEED_DEMO_DATA=true`.
 
 ## Scripts
 
-| Command            | What it does                                                     |
-| ------------------ | ---------------------------------------------------------------- |
-| `pnpm dev`         | Build `@kmg/shared`, then run api + web (and the shared watcher) |
-| `pnpm dev:api`     | API only (`nest start --watch`)                                  |
-| `pnpm dev:web`     | Web only (`next dev`)                                            |
-| `pnpm build`       | Build shared → api → web                                         |
-| `pnpm lint`        | Lint every package                                               |
-| `pnpm typecheck`   | `tsc --noEmit` everywhere                                        |
-| `pnpm test`        | Unit tests (Jest for api, Vitest for web)                        |
-| `pnpm db:generate` | `prisma generate`                                                |
-| `pnpm db:migrate`  | `prisma migrate dev` (creates + applies a migration)             |
-| `pnpm db:seed`     | Seed roles, settings, admin and demo content                     |
-| `pnpm db:studio`   | Prisma Studio                                                    |
-| `pnpm format`      | Prettier write                                                   |
+Run these inside `backend/` or `frontend/` (each project has its own scripts):
+
+| Command                | Where      | What it does                                         |
+| ---------------------- | ---------- | ---------------------------------------------------- |
+| `pnpm dev`             | both       | Build `shared`, then run with hot reload             |
+| `pnpm build`           | both       | Build `shared`, then the app                         |
+| `pnpm lint`            | both       | ESLint (frontend) / `tsc --noEmit` (backend)         |
+| `pnpm typecheck`       | both       | `tsc --noEmit`                                       |
+| `pnpm test`            | both       | Unit tests (Jest in backend, Vitest in frontend)     |
+| `pnpm format`          | both       | Prettier write                                       |
+| `pnpm build:shared`    | both       | Compile the project's `shared/` copy                 |
+| `pnpm prisma:generate` | backend    | `prisma generate`                                    |
+| `pnpm prisma:migrate`  | backend    | `prisma migrate dev` (creates + applies a migration) |
+| `pnpm prisma:seed`     | backend    | Seed roles, settings, admin and demo content         |
+| `pnpm prisma:studio`   | backend    | Prisma Studio                                        |
+| `pnpm test:e2e`        | backend    | End-to-end tests against `<db>_test`                 |
 
 `make help` lists the operational targets (`make dev`, `make up`, `make seed`, `make build-images`,
 `make k8s-staging`, `make k8s-prod`, `make logs`, …).

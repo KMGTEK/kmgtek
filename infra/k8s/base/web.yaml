@@ -128,7 +128,7 @@ spec:
               drop: ['ALL']
           volumeMounts:
             - name: next-cache
-              mountPath: /app/apps/web/.next/cache
+              mountPath: /app/.next/cache
             - name: tmp
               mountPath: /tmp
       volumes:

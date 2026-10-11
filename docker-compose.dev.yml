@@ -1,8 +1,9 @@
 # KmgTechnologies — local development backing services only.
-# The apps themselves run on the host with `pnpm dev` (fast refresh, debuggers).
+# The backend and frontend run on the host with `pnpm dev` (fast refresh, debuggers).
 #
 #   docker compose -f docker-compose.dev.yml up -d
-#   cp .env.example .env && pnpm install && pnpm db:migrate && pnpm db:seed && pnpm dev
+#   (cd backend && pnpm install && pnpm prisma:migrate && pnpm prisma:seed && pnpm dev)
+#   (cd frontend && pnpm install && pnpm dev)
 #
 # Ports are published on localhost so the defaults in .env.example just work:
 #   postgres 5432 · redis 6379 · minio 9000 (console 9001) · mailpit 1025 (UI 8025)
